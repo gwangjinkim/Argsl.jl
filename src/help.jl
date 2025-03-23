@@ -14,39 +14,33 @@ function format_type(argtype)
     end
 end
 
-function print_argsl_help(dsl::String)
-    println("Available arguments:\n")
-    for line in split(dsl, "\n")
-        line = strip(line)
-        isempty(line) && continue                           # <-- fix
-        startswith(line, "#") && continue                   # <-- fix
-
-        helptext = ""
-        if occursin("#", line)
-            parts = split(line, "#", limit=2)
-            line = strip(parts[1])
-            helptext = strip(parts[2])
+function print_argsl_help(dsl::String, io::IO=stdout)
+    args = parse_argsl_from_argv(dsl, String[]; allow_incomplete=true)
+    
+    println(io, "Available arguments:\n")
+    
+    for d in args.defs
+        parts = String[]
+        if !isempty(d.name)
+            push!(parts, "--" * d.name)
+        end
+        if d.short !== nothing
+            push!(parts, "-" * d.short)
         end
 
-        arg = parse_line(line)
-        flags = arg.short !== nothing ? "--$(arg.name), -$(arg.short)" : arg.name
+        flags = join(parts, ", ")
 
-        info = format_type(arg.argtype)
-        info *= arg.required ? ", required" : ", optional"
+        meta = join(filter(!isempty, [
+        string(d.argtype),
+        d.required ? "required" : "optional",
+        d.envfallback !== nothing ? "env: " * d.envfallback : "",
+        d.default !== nothing ? "default: " * string(d.default) : "",
+        d.multiple ? "multiple" : ""
+        ]), ", ")
 
-        if arg.default !== nothing
-            info *= ", default: $(arg.default)"
-        end
-        if arg.envfallback !== nothing
-            info *= ", env: $(arg.envfallback)"
-        end
-        if arg.multiple
-            info *= ", multiple"
-        end
+    
 
-        println(rpad(flags, 25), info)
-        if !isempty(helptext)
-            println("  → ", helptext)
-        end
+        println(io, rpad(flags, 24), meta)
+        d.description !== nothing && println(io, "  → ", d.description)
     end
 end

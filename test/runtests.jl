@@ -29,23 +29,46 @@ using Test
     @test isa(args.values["values"], Vector)
     @test args.values["values"] == [1, 2, 3]
     @test args.values["no-cache"] == true
+
+    # 📦 Test argument metadata (descriptions, short flags, etc.)
+    defmap = Dict(d.name => d for d in args.defs)
+
+    @test defmap["name"].short == "n"
+    @test defmap["name"].description == "The user name"
+
+    @test defmap["debug"].short === nothing
+    @test defmap["debug"].description == "Enable debug mode"
+
+    @test defmap["level"].short == "l"
+    @test defmap["level"].description == "Level of verbosity"
+
+    @test defmap["threads"].description == "Number of threads"
+    @test defmap["logfile"].description == "Required logfile"
+    @test defmap["values"].description == "Multiple int values"
+    @test defmap["no-cache"].description == "Disable cache"
+    @test defmap["filename"].description == ""  # No inline description provided
 end
 
+
 @testset "Argsl help output should render" begin
-    try
-        Argsl.print_argsl_help("""
+    io = IOBuffer()
+    Argsl.print_argsl_help("""
         --name|-n <str=env:USER>     # The user name
         --debug <flag>               # Enable debug mode
-        --level|-l <choice:low,med,high=\"med\">  # Level of verbosity
+        --level|-l <choice:low,med,high="med">  # Level of verbosity
         --logfile <path!>            # Output file
-        filename <path!>
-        """)
-        @test true  # Passed if no exception was thrown
-    catch e
-        @test false  # Fails if an exception was thrown
-        @info "Help output error" exception=e
-    end
+        --values <int*>              # Multiple values
+        filename <path!>             # Input file
+    """, io)
+    output = String(take!(io))
+    
+    @test occursin("Available arguments", output)
+    @test occursin("--logfile", output)
+    @test occursin("--values", output)
+    @test occursin("multiple", output)
+    @test occursin("filename", output)
 end
+
 
 @testset "Argsl error handling" begin
     @test_throws ErrorException Argsl.parse_argsl_from_argv("""
@@ -60,5 +83,18 @@ end
     @test_throws ErrorException Argsl.parse_argsl_from_argv("""
         --level <choice:low,med,high>
     """, ["--level", "ultra"])
+end
+
+@testset "DSL description parsing" begin
+    dsl = """
+    # This script processes files
+    # and outputs a result
+
+    --file|-f <path>  # Input file
+    """
+    args = Argsl.parse_argsl_from_argv(dsl, ["--file", "input.txt"])
+    @test occursin("processes files", args.meta["description"])
+    @test length(args.defs) == 1
+    @test args.defs[1].description == "Input file"
 end
 

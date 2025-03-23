@@ -18,10 +18,16 @@ struct ArgDef
     default::Any
     multiple::Bool
     envfallback::Union{Nothing, String}
+    description::String
 end
 
-Base.@kwdef mutable struct ArgResult
-    values::Dict{String, Any} = Dict()
+mutable struct ArgResult
+    values::Dict{String, Any}
+    defs::Vector{ArgDef}
+    meta::Dict{String, Any}
+    function ArgResult()
+        new(Dict{String, Any}(), ArgDef[], Dict{String, Any}())
+    end
 end
 
 # Conversion methods
