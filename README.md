@@ -1,6 +1,6 @@
 # Argsl.jl
 
-A minimalist DSL-based argument parser for Julia. 🧩
+A DSL for command line interface (CLI) argument parser for Julia (Args-DSL => Argsl). 🧩
 
 ## ✨ Features
 
@@ -8,10 +8,10 @@ A minimalist DSL-based argument parser for Julia. 🧩
 - Supports:
   - Positional and optional arguments
   - Short and long flag variants (`--flag`, `-f`)
-  - Required `!`, Default `=`, Environment fallback `=env:...`
+  - Required `!`, Fallback to a default value `=default_value`, Fallback to an Environment varible `=env:USER`
   - Multiple values via `*`
   - Type conversion: `int`, `float`, `str`, `path`
-  - Choice validation like enums via `choice:...`
+  - Choice validation like enums via `choice:a,b,c`
   - Help strings via inline `# comments`
   - Global description via leading `#` comments
 
@@ -19,6 +19,8 @@ A minimalist DSL-based argument parser for Julia. 🧩
 
 ```julia
 pkg> add https://github.com/yourusername/Argsl.jl
+
+julia> using Argsl
 ```
 
 ## 🚀 Usage
@@ -28,14 +30,14 @@ using Argsl
 
 dsl = """
 # This program processes input files and logs results.
-filename <path!>                        # Input filename
---name|-n <str=env:USER>               # The user name
---debug <flag>                         # Enable debug mode
---level|-l <choice:low,med,high="med"># Level of verbosity
---threads <int=4>                      # Number of threads
---logfile <path!>                      # Required logfile
---values <int*>                        # Multiple int values
---no-cache <flag>                      # Disable cache
+filename <path!>                       # Input filename, checked as a path and required argument (!)
+--name|-n <str=env:USER>               # The user name - default value is USER environment variable
+--debug <flag>                         # Enable debug mode - acts as a flag (value: true)
+--level|-l <choice:low,med,high="med"> # Level of verbosity, to choose between "low", "med"(default), and "high"
+--threads <int=4>                      # Number of threads (default 4)
+--logfile <path!>                      # Required logfile, checked to be a path
+--values <int*>                        # Multiple int values (variadic arguments)
+--no-cache <flag>                      # Disable cache (value is `true`)
 """
 
 argv = [
@@ -104,6 +106,10 @@ logfile               path, required
 filename              path, required
   → Input filename
 ```
+(Cave: The text which comes after `#` in the DSL string `dsl` will be shown.
+In my example - I wanted to explain more - so the texts deviate -
+but you can see that one can determine in the `dsl` string what should become
+the help text!)
 
 ## 🧪 Testing
 
@@ -144,4 +150,4 @@ julis> include("test/runtests.jl")
 
 ---
 
-Pull requests, suggestions, and issues welcome 🙌
+Pull requests, suggestions, and issues welcome 🙌 !
