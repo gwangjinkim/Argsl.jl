@@ -1,7 +1,7 @@
 name = "Argsl"
 uuid = "5f48e23f-a627-4ac7-b9b1-3546954d74e6"
 authors = ["Gwang-Jin Kim <gwang.jin.kim.phd@gmail.com>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
