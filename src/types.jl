@@ -1,5 +1,3 @@
-module Types
-
 abstract type ArgType end
 
 struct Str       <: ArgType end
@@ -26,4 +24,12 @@ Base.@kwdef mutable struct ArgResult
     values::Dict{String, Any} = Dict()
 end
 
-end
+# Conversion methods
+convert_value(::Str, val) = val
+convert_value(::PathArg, val) = val
+convert_value(::BoolFlag, val) = val  # Already handled as `true`/`false`
+convert_value(::IntArg, val) = parse(Int, val)
+convert_value(::FloatArg, val) = parse(Float64, val)
+convert_value(arg::ChoiceArg, val) = val in arg.choices ? val : error("Invalid choice: $val. Valid: $(join(arg.choices, ", "))")
+
+## for any new type add convert_table(::NewType, val) = do-something-with val

@@ -1,8 +1,3 @@
-module Help
-
-using ..Types
-import ..Parser: parse_line
-
 function format_type(argtype)
     if argtype isa BoolFlag
         return "flag"
@@ -23,31 +18,28 @@ function print_argsl_help(dsl::String)
     println("Available arguments:\n")
     for line in split(dsl, "\n")
         line = strip(line)
-        isempty(line) || startswith(line, "#") && continue
+        isempty(line) && continue                           # <-- fix
+        startswith(line, "#") && continue                   # <-- fix
 
         helptext = ""
         if occursin("#", line)
-            line, helptext = strip.(split(line, "#", limit=2))
+            parts = split(line, "#", limit=2)
+            line = strip(parts[1])
+            helptext = strip(parts[2])
         end
 
         arg = parse_line(line)
-        flags = arg.short !== nothing ? "--$(arg.name), -$(arg.short)" : "$(arg.name)"
+        flags = arg.short !== nothing ? "--$(arg.name), -$(arg.short)" : arg.name
 
         info = format_type(arg.argtype)
-        if arg.required
-            info *= ", required"
-        else
-            info *= ", optional"
-        end
+        info *= arg.required ? ", required" : ", optional"
 
         if arg.default !== nothing
             info *= ", default: $(arg.default)"
         end
-
         if arg.envfallback !== nothing
             info *= ", env: $(arg.envfallback)"
         end
-
         if arg.multiple
             info *= ", multiple"
         end
@@ -57,6 +49,4 @@ function print_argsl_help(dsl::String)
             println("  → ", helptext)
         end
     end
-end
-
 end

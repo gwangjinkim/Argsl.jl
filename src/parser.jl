@@ -1,8 +1,3 @@
-module Parser
-
-using ..Types
-import ..Types: ArgDef, ArgType, ArgResult, Str, IntArg, FloatArg, PathArg, BoolFlag, ChoiceArg
-
 function parse_type(typstr::String)
     if startswith(typstr, "choice:")
         choices = split(replace(typstr, "choice:" => ""), ",")
@@ -17,9 +12,14 @@ function parse_type(typstr::String)
     )[typstr]
 end
 
-function parse_line(line::String)::ArgDef
-    s = split(line, r"\s*<|>\s*")
-    flags, type_expr = strip(s[1]), strip(s[2])
+function parse_line(line::AbstractString)::ArgDef
+    m = match(r"^(.*?)\s*<([^>]+)>", line)
+    if m === nothing
+        error("Invalid line format in DSL: '$line'. Must contain one '<...>' block.")
+    end
+
+    flags = strip(m.captures[1])
+    type_expr = strip(m.captures[2])
 
     name, short = nothing, nothing
     if startswith(flags, "--")
@@ -33,19 +33,38 @@ function parse_line(line::String)::ArgDef
     required    = occursin("!", type_expr)
     multiple    = occursin("*", type_expr)
     envfallback = occursin("=env:", type_expr) ? split(type_expr, "=env:")[2] : nothing
-    default     = occursin("=", type_expr) && !occursin("=env:", type_expr) ? eval(Meta.parse(split(type_expr, "=")[2])) : nothing
-    clean_type  = replace(split(split(type_expr, "=")[1], "!")[1], "*" => "")
+
+    default     = occursin("=" , type_expr) && !occursin("=env:", type_expr) ?
+        split(type_expr, "=", limit=2)[2] : nothing
+
+    default_val = if default !== nothing
+        try
+            eval(Meta.parse(default))
+        catch
+            default  # fallback as-is
+        end
+    else
+        nothing
+    end
+
+    clean_type = replace(split(split(type_expr, "=")[1], "!")[1], "*" => "")
 
     argtype = parse_type(clean_type)
 
-    ArgDef(name, short, argtype, required, default, multiple, envfallback)
+    ArgDef(name, short, argtype, required, default_val, multiple, envfallback)
 end
 
 function parse_argsl_from_argv(dsl::String, argv=ARGS)::ArgResult
     defs = ArgDef[]
     for line in split(dsl, "\n")
         line = strip(line)
-        isempty(line) || startswith(line, "#") && continue
+        isempty(line) || startswith(line, "#") && continue  # <- Already present
+        
+        # 💡 Add this extra check before parse_line:
+        if !occursin(r"<.*?>", line)
+            continue  # Skip lines that don't contain a <...> type expression
+        end
+
         push!(defs, parse_line(line))
     end
 
@@ -61,9 +80,29 @@ function parse_argsl_from_argv(dsl::String, argv=ARGS)::ArgResult
             if d.argtype isa BoolFlag
                 res.values[d.name] = true
                 i += 1
+            elseif d.multiple
+                vals = String[]
+                i += 1
+                while i <= length(argv) && !startswith(argv[i], "-")
+                    push!(vals, argv[i])
+                    i += 1
+                end
+                isempty(vals) && error("Missing values for $arg")
+
+                try
+                    res.values[d.name] = [convert_value(d.argtype, v) for v in vals]
+                catch e
+                    error("invalid one of multiple values for --$(d.name)")
+                end
+                
             else
                 i + 1 > length(argv) && error("Missing value for $arg")
-                res.values[d.name] = argv[i+1]
+                raw_val = argv[i+1]
+                try
+                    res.values[d.name] = convert_value(d.argtype, raw_val)
+                catch e
+                    error("Invalid value for --$(d.name): '$raw_val'. Expected $(typeof(d.argtype))")
+                end
                 i += 2
             end
         else
@@ -93,6 +132,4 @@ end
 
 function argsl(dsl::String)
     return parse_argsl_from_argv(dsl, String[])
-end
-
 end

@@ -1,165 +1,109 @@
-# Argsl.jl 📜
+# Argsl.jl
 
-A readable DSL on top of Julia CLI parsing — inspired by Python’s argparse, but designed for elegance using Julia’s type system and multiple dispatch.
+A minimalist DSL-based argument parser for Julia.
 
----
+## ✨ Features
 
-## 💡 Why use Argsl.jl?
+- Declarative argument specification using a simple DSL
+- Support for:
+  - Positional arguments
+  - Flags (boolean switches)
+  - Environment variable fallbacks
+  - Default values
+  - Required arguments
+  - Multiple values
+  - Choice validation (like enums)
+- Automatic type parsing (e.g., `int`, `float`, etc.)
+- Clear help output generation
 
-Writing CLI parsers manually in Julia is verbose. `Argsl.jl` lets you define arguments declaratively, like this:
-
-```julia
-args = argsl("""
-filename <path!>                      # Required positional
---name|-n <str=env:USER>              # Optional flag with env fallback
---level|-l <choice:low,med,high="med"> # Choice type with default
---debug <flag>                        # Boolean flag
---logfile <path!>                     # Required logfile
-""")
-```
-
-### 🧠 Features:
-- ✅ Type-safe args (`int`, `str`, `float`, `path`, `bool`, `choice`)
-- ✅ Required & optional args
-- ✅ Defaults & environment fallbacks
-- ✅ Flag booleans (`--flag` → true)
-- ✅ Long/short flag variants
-- ✅ Multiple values support
-- ✅ Rich help output via `--help`
-- ✅ Autocompletion script generator
-- ✅ GitHub Actions CI support
-
----
-
-## 🔧 Installation
+## 📦 Installation
 
 ```julia
-using Pkg
-Pkg.add(url="https://github.com/gwangjinkim/Argsl.jl")
+pkg> add https://github.com/yourusername/Argsl.jl
 ```
 
----
+## 🚀 Usage
 
-## 🧪 Test it works
+```julia
+using Argsl
 
-```bash
-julia --project -e 'using Pkg; Pkg.test()'
-```
-Or via helper:
-```bash
-./check.jl
-```
+dsl = """
+filename <path!>
+--threads <int=4>
+--debug <flag>
+--level <choice:low,med,high="med">
+--values <int*>
+"""
 
----
+argv = ["input.txt", "--threads", "8", "--debug", "--level", "high", "--values", "1", "2", "3"]
+args = parse_argsl_from_argv(dsl, argv)
 
-## 🚀 Example CLI Run
-Run:
-```bash
-julia bin/argsl.jl myfile.txt --name Alice --debug --level high --logfile out.log
-```
-Which prints:
-```
-Args parsed:
-  filename: myfile.txt
-  name: Alice
-  debug: true
-  level: high
-  logfile: out.log
+@show args.values["filename"]  # => "input.txt" :: String
+@show args.values["threads"]   # => 8          :: Int
+@show args.values["debug"]     # => true       :: Bool
+@show args.values["level"]     # => "high"     :: String
+@show args.values["values"]    # => [1, 2, 3]   :: Vector{Int}
 ```
 
----
+## 🎛️ Supported Types
 
-## 📖 Argument Types DSL Table
+| DSL Type        | Julia Type   | Description                            |
+|----------------|--------------|----------------------------------------|
+| `str`          | `String`     | Default string input                   |
+| `int`          | `Int64`      | Integer value                          |
+| `float`        | `Float64`    | Floating-point number                  |
+| `path`         | `String`     | Treated as a file or directory path    |
+| `flag`         | `Bool`       | Boolean switch (true if present)       |
+| `choice:a,b,c` | `String`     | Must be one of the listed choices      |
 
-| DSL Syntax                         | Description                              |
-|-----------------------------------|------------------------------------------|
-| `<str>` / `<int>` / `<float>`     | Typed single value                       |
-| `<path>`                          | File path                                |
-| `<flag>`                          | Becomes true when passed                 |
-| `<str!>`                          | Required argument                        |
-| `<int=42>`                        | With default value                       |
-| `<choice:a,b,c="b">`             | Only one of choices                      |
-| `=env:VARNAME`                    | Fallback to environment variable         |
-| `--name|-n`                       | Long and short forms                     |
-| `--onlyflag`                      | Long-only flag                           |
-| `--no-cache <flag>`              | Treated as normal flag (true if present) |
-| `<int*>`                          | Multiple values                          |
+## ✅ Argument Modifiers
 
----
+- `!` → Required argument
+- `=val` → Default value
+- `=env:VAR` → Fallback to environment variable
+- `*` → Accept multiple values
 
-## 📜 Help Output (`--help`)
+## 📤 Help Output
 
-When `--help` is passed, you'll see:
+Use `print_argsl_help(dsl)` to render a description of all arguments:
+
+```julia
+print_argsl_help(dsl)
+```
+
+Example Output:
 ```
 Available arguments:
 
---name, -n              str, optional, env: USER
-  → The user name
-
+--threads               int, optional, default: 4
 --debug                 flag, optional
-  → Enable debug mode
-
---level, -l             choice: low, med, high, optional, default: med
-  → Level of verbosity
-
---logfile               path, required
-  → Output file
-
+--level                 choice: low, med, high, optional, default: med
+--values                int, optional, multiple
 filename                path, required
 ```
 
----
+## 🔒 Error Handling
 
-## ⌨️ Shell Completion
-Generate a bash completion script:
-```bash
-julia Argsl/gen_completion.jl > argsl-complete.sh
-source argsl-complete.sh
+Argsl validates types and choices:
+
+```julia
+parse_argsl_from_argv("--threads <int>", ["--threads", "notanint"])
+# => Error: Invalid value for --threads: 'notanint'. Expected IntArg
+
+parse_argsl_from_argv("--level <choice:low,med,high>", ["--level", "extreme"])
+# => Error: Invalid choice 'extreme' for --level. Must be one of: low, med, high
 ```
 
----
+## 🧪 Testing
 
-## 📘 README Example Generator
-Auto-generate usage snippet:
-```bash
-julia Argsl/gen_readme_example.jl >> README.md
+```julia
+Pkg.test("Argsl")
 ```
 
----
+## 📜 License
+MIT
 
-## 🔁 CI Setup with GitHub Actions
 
-`.github/workflows/ci.yml`
-```yaml
-name: CI
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1.9'
-      - name: Install & Test
-        run: |
-          julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.test()'
-```
 
----
+Written by Gwang-Jin Kim
 
-## 🔮 Coming Soon
-- [x] Pretty `--help` descriptions ✅
-- [x] CLI binary & script mode ✅
-- [x] Bash completions ✅
-- [ ] Auto-generated README 
-- [ ] Optional Zsh completion
-- [ ] Registry submission
-
----
-
-MIT Licensed • Created by Gwang-Jin Kim

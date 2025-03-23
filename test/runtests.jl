@@ -24,10 +24,10 @@ using Test
     @test args.values["name"] == "Alice"
     @test args.values["debug"] == true
     @test args.values["level"] == "high"
-    @test parse(Int, args.values["threads"]) == 8
+    @test args.values["threads"] == 8
     @test args.values["logfile"] == "out.log"
     @test isa(args.values["values"], Vector)
-    @test args.values["values"] == ["1", "2", "3"]
+    @test args.values["values"] == [1, 2, 3]
     @test args.values["no-cache"] == true
 end
 
@@ -36,12 +36,14 @@ end
         Argsl.print_argsl_help("""
         --name|-n <str=env:USER>     # The user name
         --debug <flag>               # Enable debug mode
-        --level|-l <choice:low,med,high="med">  # Level of verbosity
+        --level|-l <choice:low,med,high=\"med\">  # Level of verbosity
         --logfile <path!>            # Output file
         filename <path!>
         """)
+        @test true  # Passed if no exception was thrown
     catch e
-        @test false "Help output threw an error: $e"
+        @test false  # Fails if an exception was thrown
+        @info "Help output error" exception=e
     end
 end
 
