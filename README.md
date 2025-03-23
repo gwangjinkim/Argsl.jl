@@ -35,7 +35,7 @@ filename <path!>                      # Required positional
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/yourusername/Argsl.jl")
+Pkg.add(url="https://github.com/gwangjinkim/Argsl.jl")
 ```
 
 ---
